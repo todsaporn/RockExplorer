@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "assetName": "granite",
+    "nameTH": "หินแกรนิต",
+    "nameEN": "Granite",
+    "nameSci": "Granite",
+    "type": "หินอัคนี",
+    "description": "เกิดจากการเย็นตัวของแมกมาใต้พื้นโลกอย่างช้า ๆ",
+    "meaning": "เป็นสัญลักษณ์ของความมั่นคงและแข็งแรง"
+  },
+  {
+    "id": 2,
+    "assetName": "basalt",
+    "nameTH": "หินบะซอลต์",
+    "nameEN": "Basalt",
+    "nameSci": "Basalt",
+    "type": "หินอัคนี",
+    "description": "เกิดจากลาวาที่เย็นตัวอย่างรวดเร็วบนพื้นผิวโลก",
+    "meaning": "สื่อถึงพลังของไฟและความแข็งแกร่ง"
+  },
+  {
+    "id": 3,
+    "assetName": "conglomerate",
+    "nameTH": "หินกรวดมน",
+    "nameEN": "Conglomerate",
+    "nameSci": "Conglomerate",
+    "type": "หินตะกอน",
+    "description": "เกิดจากการรวมตัวของกรวดและตะกอนที่ถูกกดทับ",
+    "meaning": "สื่อถึงความหลากหลายและความร่วมมือ"
+  },
+  {
+    "id": 4,
+    "assetName": "pumice",
+    "nameTH": "หินพัมมิซ",
+    "nameEN": "Pumice",
+    "nameSci": "Pumice",
+    "type": "หินอัคนี",
+    "description": "เกิดจากการเย็นตัวของลาวาที่มีฟองก๊าซมาก",
+    "meaning": "เบาแต่มีพลังในตัวเอง เหมือนแรงบันดาลใจ"
+  }
+]

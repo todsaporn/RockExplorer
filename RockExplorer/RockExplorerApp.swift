@@ -6,16 +6,25 @@
 //
 
 import SwiftUI
-import CoreData
 
 @main
 struct RockExplorerApp: App {
-    let persistenceController = PersistenceController.shared
+    @StateObject private var collectionViewModel: RockCollectionViewModel
+    @StateObject private var locationService = LocationService()
+    @StateObject private var radarViewModel: RadarViewModel
+
+    init() {
+        let collection = RockCollectionViewModel()
+        _collectionViewModel = StateObject(wrappedValue: collection)
+        _radarViewModel = StateObject(wrappedValue: RadarViewModel(collection: collection))
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .environmentObject(collectionViewModel)
+                .environmentObject(locationService)
+                .environmentObject(radarViewModel)
         }
     }
 }
