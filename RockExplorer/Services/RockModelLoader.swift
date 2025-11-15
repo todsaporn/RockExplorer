@@ -11,7 +11,7 @@ import UIKit
 
 enum RockModelLoader {
     static func modelEntity(for rock: Rock) -> ModelEntity {
-        if let url = resourceURL(for: rock.assetName, extension: "usdz") {
+        if let url = RockResourceResolver.resourceURL(for: rock.assetName, extension: "usdz") {
             if let entity = try? ModelEntity.loadModel(contentsOf: url) {
 #if DEBUG
                 print("RockModelLoader: loaded USDZ \(rock.assetName) from \(url.lastPathComponent)")
@@ -24,7 +24,7 @@ enum RockModelLoader {
             }
         }
 
-        if let url = resourceURL(for: rock.assetName, extension: "reality") {
+        if let url = RockResourceResolver.resourceURL(for: rock.assetName, extension: "reality") {
             if let entity = try? Entity.load(contentsOf: url) as? ModelEntity ?? Entity.load(contentsOf: url).convertToModelEntity() {
 #if DEBUG
                 print("RockModelLoader: loaded Reality file \(rock.assetName) from \(url.lastPathComponent)")
@@ -37,37 +37,31 @@ enum RockModelLoader {
             }
         }
 
-        if let url = resourceURL(for: rock.assetName, extension: "glb") {
+        let glbName = RockResourceResolver.glbName(for: rock.assetName)
+        if glbName != rock.assetName {
+#if DEBUG
+            print("RockModelLoader: falling back to \(glbName).glb for \(rock.assetName)")
+#endif
+        }
+
+        if let url = RockResourceResolver.resourceURL(for: glbName, extension: "glb") {
             do {
                 let entity = try Entity.load(contentsOf: url)
                 let model = entity.convertToModelEntity()
 #if DEBUG
-                print("RockModelLoader: loaded GLB \(rock.assetName) from \(url.lastPathComponent)")
+                print("RockModelLoader: loaded GLB \(glbName) from \(url.lastPathComponent)")
 #endif
                 model.generateCollisionShapes(recursive: true)
                 normalizeScale(for: model)
                 return model
             } catch {
-                print("RockModelLoader: failed to load GLB model \(rock.assetName) - \(error.localizedDescription)")
+                print("RockModelLoader: failed to load GLB model \(glbName) - \(error.localizedDescription)")
             }
         } else {
-            print("RockModelLoader: asset \(rock.assetName).glb not found in bundle")
+            print("RockModelLoader: asset \(glbName).glb not found in bundle")
         }
 
         return placeholderEntity()
-    }
-
-    private static func resourceURL(for name: String, extension ext: String) -> URL? {
-        if let url = Bundle.main.url(forResource: name, withExtension: ext) {
-            return url
-        }
-        if let url = Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "Rocks") {
-            return url
-        }
-        if let url = Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "Resources/Rocks") {
-            return url
-        }
-        return nil
     }
 
     private static func normalizeScale(for entity: ModelEntity) {

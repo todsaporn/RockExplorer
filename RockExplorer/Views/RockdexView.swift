@@ -143,7 +143,7 @@ private struct RockdexCard: View {
 private extension RockdexCard {
     @ViewBuilder
     var rockImageView: some View {
-        if let image = UIImage(named: rock.imageName) ?? UIImage(named: rock.assetName) {
+        if let image = RockImageProvider.image(for: rock) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()

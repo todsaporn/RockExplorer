@@ -33,6 +33,8 @@ struct RadarView: View {
     @State private var loadingTask: Task<Void, Never>?
     @State private var loadingCompletionWork: DispatchWorkItem?
     @State private var proximityLevel: ProximityLevel = .searching
+    @State private var targetBearing: Double?
+    @State private var nearestDistance: Double?
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -57,6 +59,8 @@ struct RadarView: View {
                 radarViewModel.reset()
                 hapticController.stop()
                 cancelLoading()
+                targetBearing = nil
+                nearestDistance = nil
             }
             .onReceive(locationService.$userLocation.compactMap { $0 }) { location in
                 updateMap(with: location)
@@ -80,7 +84,11 @@ struct RadarView: View {
                 .padding(.horizontal)
                 .padding(.top, 12)
 
-                HeadingIndicator(heading: locationService.heading)
+                HeadingIndicator(
+                    heading: locationService.heading,
+                    targetBearing: targetBearing,
+                    distance: nearestDistance
+                )
                     .padding(.horizontal)
 
                 ProximityStatusView(level: proximityLevel)
@@ -144,6 +152,8 @@ struct RadarView: View {
         }
 
         let result = radarViewModel.updateUserLocation(location)
+        nearestDistance = result.nearestDistance
+        updateTargetBearing(with: location, rock: result.nearestRock)
 
         if let discovered = result.found {
             if !collection.isCollected(discovered.rock) {
@@ -165,6 +175,30 @@ struct RadarView: View {
             }
             finishLoading()
         }
+    }
+
+    private func updateTargetBearing(with location: CLLocation, rock: RadarRock?) {
+        guard let rock else {
+            targetBearing = nil
+            return
+        }
+
+        targetBearing = bearing(from: location.coordinate, to: rock.coordinate)
+    }
+
+    private func bearing(from origin: CLLocationCoordinate2D, to destination: CLLocationCoordinate2D) -> Double {
+        let lat1 = origin.latitude.toRadians
+        let lon1 = origin.longitude.toRadians
+        let lat2 = destination.latitude.toRadians
+        let lon2 = destination.longitude.toRadians
+        let dLon = lon2 - lon1
+
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        let radians = atan2(y, x)
+        let degrees = radians * 180 / .pi
+        let normalized = degrees.truncatingRemainder(dividingBy: 360)
+        return normalized >= 0 ? normalized : (normalized + 360)
     }
 
     private func recenterCamera() {
@@ -413,30 +447,79 @@ private struct LoadingPanel: View {
 
 private struct HeadingIndicator: View {
     let heading: CLHeading?
+    let targetBearing: Double?
+    let distance: Double?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("ทิศทางของคุณ")
-                .font(.caption)
-                .foregroundStyle(Color.secondaryText)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("ทิศทางใกล้สุด")
+                        .font(.caption)
+                        .foregroundStyle(Color.secondaryText)
+                    Text(directionLabel)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.primaryText)
+                }
+                Spacer()
+            }
 
             ZStack {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.surface)
-                .frame(height: 60)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 4)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.surface)
+                    .frame(height: 80)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 4)
 
-            Image(systemName: "location.north.line.fill")
-                .font(.largeTitle)
-                .foregroundStyle(Color.primaryText)
-                .rotationEffect(.degrees(heading?.trueHeading ?? 0))
-                    .animation(.easeInOut(duration: 0.2), value: heading?.trueHeading)
+                Image(systemName: "location.north.line.fill")
+                    .font(.largeTitle)
+                    .foregroundStyle(targetBearing == nil ? Color.primaryText : Color.pastelPurple)
+                    .rotationEffect(.degrees(pointerRotationDegrees))
+                    .animation(.easeInOut(duration: 0.2), value: pointerRotationDegrees)
             }
+
+            Text(distanceLabel)
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(Color.secondaryText)
         }
+    }
+
+    private var pointerRotationDegrees: Double {
+        if let bearing = targetBearing {
+            return bearing
+        }
+        return heading?.trueHeading ?? 0
+    }
+
+    private var directionLabel: String {
+        guard let bearing = targetBearing else {
+            if let headingValue = heading?.trueHeading {
+                return "กำลังหันไปทาง \(cardinalDirection(for: headingValue)) • \(Int(headingValue))°"
+            }
+            return "กำลังค้นหาเป้าหมาย"
+        }
+        return "\(cardinalDirection(for: bearing)) • \(Int(bearing))°"
+    }
+
+    private var distanceLabel: String {
+        guard let distance else {
+            return "รอระบุระยะจากหิน"
+        }
+        if distance >= 1000 {
+            let km = distance / 1000
+            return String(format: "ห่าง %.1f กม.", km)
+        } else {
+            return String(format: "ห่าง %.0f ม.", distance)
+        }
+    }
+
+    private func cardinalDirection(for bearing: Double) -> String {
+        let directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        let index = Int(((bearing + 22.5) / 45).rounded(.down)) % directions.count
+        return directions[index]
     }
 }
 
@@ -514,6 +597,12 @@ private struct RockFoundSheet: View {
         }
         .presentationBackground(.thinMaterial)
         .presentationCornerRadius(28)
+    }
+}
+
+private extension Double {
+    var toRadians: Double {
+        self * .pi / 180
     }
 }
 

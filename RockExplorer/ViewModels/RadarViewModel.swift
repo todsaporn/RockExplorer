@@ -51,12 +51,13 @@ final class RadarViewModel: ObservableObject {
         isGenerating = false
     }
 
-    func updateUserLocation(_ location: CLLocation) -> (found: RadarRock?, nearestDistance: Double?) {
-        guard !radarRocks.isEmpty else { return (nil, nil) }
+    func updateUserLocation(_ location: CLLocation) -> (found: RadarRock?, nearestDistance: Double?, nearestRock: RadarRock?) {
+        guard !radarRocks.isEmpty else { return (nil, nil, nil) }
 
         var closestRock: RadarRock?
         var updatedRocks = radarRocks
         var nearestDistance: Double?
+        var nearestRock: RadarRock?
 
         for index in updatedRocks.indices {
             let radarRock = updatedRocks[index]
@@ -65,21 +66,18 @@ final class RadarViewModel: ObservableObject {
 
             if nearestDistance == nil || distance < nearestDistance ?? .greatestFiniteMagnitude {
                 nearestDistance = distance
+                nearestRock = updatedRocks[index]
             }
 
-            if distance <= 5 {
+            if distance <= 5 && !updatedRocks[index].isDiscovered {
                 updatedRocks[index].isDiscovered = true
                 closestRock = updatedRocks[index]
             }
         }
 
         radarRocks = updatedRocks
-        if let closestRock {
-            nearbyRock = closestRock
-        } else {
-            nearbyRock = nil
-        }
-        return (closestRock, nearestDistance)
+        nearbyRock = closestRock
+        return (closestRock, nearestDistance, nearestRock)
     }
 
     func consumeNearbyRock() -> RadarRock? {

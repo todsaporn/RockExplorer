@@ -28,8 +28,8 @@ struct RockDetailView: View {
                     value: rock.description
                 )
                 infoSection(
-                    title: "ความหมาย",
-                    value: rock.meaning
+                    title: "การใช้งาน",
+                    value: rock.usage
                 )
 
                 if let location = rock.location {
@@ -104,7 +104,7 @@ private struct RockImageView: View {
 
     var body: some View {
         Group {
-            if let image = UIImage(named: rock.imageName) ?? UIImage(named: rock.assetName) {
+            if let image = RockImageProvider.image(for: rock) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()

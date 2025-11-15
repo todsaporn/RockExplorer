@@ -16,15 +16,15 @@ struct Rock: Identifiable, Codable, Equatable, Hashable {
     let nameSci: String
     let type: String
     let description: String
-    let meaning: String
+    let usage: String
     let location: CLLocationCoordinate2D?
 
     var imageName: String {
-        "Resources/Rocks/\(assetName).png"
+        RockResourceResolver.imageName(for: assetName)
     }
 
     var modelName: String {
-        "Resources/Rocks/\(assetName).glb"
+        RockResourceResolver.glbName(for: assetName)
     }
 
     static let placeholder = Rock(
@@ -35,7 +35,7 @@ struct Rock: Identifiable, Codable, Equatable, Hashable {
         nameSci: "Sample Rock",
         type: "หินอัคนี",
         description: "ข้อมูลตัวอย่างสำหรับหน้าจอพรีวิว",
-        meaning: "ความหมายตัวอย่าง",
+        usage: "ตัวอย่างการใช้งานหรือความเชื่อมโยงทางประวัติศาสตร์",
         location: nil
     )
 }
@@ -49,7 +49,7 @@ extension Rock {
         case nameSci
         case type
         case description
-        case meaning
+        case usage
         case latitude
         case longitude
     }
@@ -63,7 +63,7 @@ extension Rock {
         nameSci = try container.decode(String.self, forKey: .nameSci)
         type = try container.decode(String.self, forKey: .type)
         description = try container.decode(String.self, forKey: .description)
-        meaning = try container.decode(String.self, forKey: .meaning)
+        usage = try container.decode(String.self, forKey: .usage)
         if let lat = try container.decodeIfPresent(Double.self, forKey: .latitude),
            let lon = try container.decodeIfPresent(Double.self, forKey: .longitude) {
             location = CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -81,7 +81,7 @@ extension Rock {
         try container.encode(nameSci, forKey: .nameSci)
         try container.encode(type, forKey: .type)
         try container.encode(description, forKey: .description)
-        try container.encode(meaning, forKey: .meaning)
+        try container.encode(usage, forKey: .usage)
         if let location {
             try container.encode(location.latitude, forKey: .latitude)
             try container.encode(location.longitude, forKey: .longitude)
