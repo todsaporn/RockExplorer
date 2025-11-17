@@ -30,7 +30,7 @@ enum RockResourceResolver {
         hasResource(named: assetName, extension: "png") ? assetName : "_default"
     }
 
-    static func glbName(for assetName: String) -> String {
-        hasResource(named: assetName, extension: "glb") ? assetName : "_object"
+    static func modelName(for assetName: String) -> String {
+        hasResource(named: assetName, extension: "usdz") ? assetName : "_default"
     }
 }

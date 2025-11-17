@@ -10,22 +10,64 @@ import RealityKit
 import UIKit
 
 enum RockModelLoader {
+    private static var cache: [String: ModelEntity] = [:]
+    private static let cacheQueue = DispatchQueue(label: "RockModelLoader.cacheQueue", attributes: .concurrent)
+    private static let preloadQueue = DispatchQueue(label: "RockModelLoader.preloadQueue")
+
     static func modelEntity(for rock: Rock) -> ModelEntity {
-        if let url = RockResourceResolver.resourceURL(for: rock.assetName, extension: "usdz") {
-            if let entity = try? ModelEntity.loadModel(contentsOf: url) {
+        if let cached = cachedEntity(for: rock.assetName) {
+            return cached.clone(recursive: true)
+        }
+
+        let entity = loadAndCacheModel(for: rock)
+        return entity.clone(recursive: true)
+    }
+
+    static func preloadModel(for rock: Rock) {
+        preloadQueue.async {
+            if cachedEntity(for: rock.assetName) == nil {
+                _ = loadAndCacheModel(for: rock)
+            }
+        }
+    }
+
+    private static func cachedEntity(for name: String) -> ModelEntity? {
+        var result: ModelEntity?
+        cacheQueue.sync {
+            result = cache[name]
+        }
+        return result
+    }
+
+    private static func store(_ entity: ModelEntity, for name: String) {
+        cacheQueue.async(flags: .barrier) {
+            cache[name] = entity
+        }
+    }
+
+    private static func loadAndCacheModel(for rock: Rock) -> ModelEntity {
+        let entity = loadModel(for: rock)
+        store(entity, for: rock.assetName)
+        return entity
+    }
+
+    private static func loadModel(for rock: Rock) -> ModelEntity {
+        let assetName = RockResourceResolver.modelName(for: rock.assetName)
+        if let url = RockResourceResolver.resourceURL(for: assetName, extension: "usdz") {
+            if let entity = loadUSDZModel(at: url) {
 #if DEBUG
-                print("RockModelLoader: loaded USDZ \(rock.assetName) from \(url.lastPathComponent)")
+                print("RockModelLoader: loaded USDZ \(assetName) from \(url.lastPathComponent)")
 #endif
                 entity.generateCollisionShapes(recursive: true)
                 normalizeScale(for: entity)
                 return entity
             } else {
-                print("RockModelLoader: failed to load USDZ model for \(rock.assetName)")
+                print("RockModelLoader: failed to load USDZ model for \(assetName)")
             }
         }
 
         if let url = RockResourceResolver.resourceURL(for: rock.assetName, extension: "reality") {
-            if let entity = try? Entity.load(contentsOf: url) as? ModelEntity ?? Entity.load(contentsOf: url).convertToModelEntity() {
+            if let entity = loadRealityEntity(at: url)?.convertToModelEntity() {
 #if DEBUG
                 print("RockModelLoader: loaded Reality file \(rock.assetName) from \(url.lastPathComponent)")
 #endif
@@ -35,30 +77,6 @@ enum RockModelLoader {
             } else {
                 print("RockModelLoader: failed to load Reality file for \(rock.assetName)")
             }
-        }
-
-        let glbName = RockResourceResolver.glbName(for: rock.assetName)
-        if glbName != rock.assetName {
-#if DEBUG
-            print("RockModelLoader: falling back to \(glbName).glb for \(rock.assetName)")
-#endif
-        }
-
-        if let url = RockResourceResolver.resourceURL(for: glbName, extension: "glb") {
-            do {
-                let entity = try Entity.load(contentsOf: url)
-                let model = entity.convertToModelEntity()
-#if DEBUG
-                print("RockModelLoader: loaded GLB \(glbName) from \(url.lastPathComponent)")
-#endif
-                model.generateCollisionShapes(recursive: true)
-                normalizeScale(for: model)
-                return model
-            } catch {
-                print("RockModelLoader: failed to load GLB model \(glbName) - \(error.localizedDescription)")
-            }
-        } else {
-            print("RockModelLoader: asset \(glbName).glb not found in bundle")
         }
 
         return placeholderEntity()
@@ -81,6 +99,32 @@ enum RockModelLoader {
         let entity = ModelEntity(mesh: mesh, materials: [material])
         entity.generateCollisionShapes(recursive: true)
         return entity
+    }
+
+    private static func loadUSDZModel(at url: URL) -> ModelEntity? {
+        var result: ModelEntity?
+        let work = {
+            result = try? ModelEntity.loadModel(contentsOf: url)
+        }
+        if Thread.isMainThread {
+            work()
+        } else {
+            DispatchQueue.main.sync(execute: work)
+        }
+        return result
+    }
+
+    private static func loadRealityEntity(at url: URL) -> Entity? {
+        var result: Entity?
+        let work = {
+            result = try? Entity.load(contentsOf: url)
+        }
+        if Thread.isMainThread {
+            work()
+        } else {
+            DispatchQueue.main.sync(execute: work)
+        }
+        return result
     }
 }
 

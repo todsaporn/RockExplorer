@@ -15,6 +15,12 @@ struct RockFocusView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var distance: Float = 0.5
+    @State private var showCongratulationPanel: Bool
+
+    init(rock: Rock, showsCongratulationPanel: Bool = false) {
+        self.rock = rock
+        _showCongratulationPanel = State(initialValue: showsCongratulationPanel)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -27,9 +33,24 @@ struct RockFocusView: View {
                 controls
             }
             .padding()
+
+            if showCongratulationPanel {
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                FocusCongratsPanel(rock: rock) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                        showCongratulationPanel = false
+                    }
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .background(Color.black.opacity(0.35))
         .preferredColorScheme(.light)
+        .onAppear {
+            RockModelLoader.preloadModel(for: rock)
+        }
     }
 
     private var header: some View {
@@ -193,11 +214,11 @@ private struct FocusARContainer: UIViewRepresentable {
                 basePitch = pitch
             case .changed:
                 let newYaw = baseYaw + deltaYaw
-                let newPitch = max(-.pi / 3, min(.pi / 3, basePitch + deltaPitch))
+                let newPitch = normalizeAngle(basePitch + deltaPitch)
                 applyRotation(yaw: newYaw, pitch: newPitch, to: model)
             case .ended, .cancelled:
                 yaw = baseYaw + deltaYaw
-                pitch = max(-.pi / 3, min(.pi / 3, basePitch + deltaPitch))
+                pitch = normalizeAngle(basePitch + deltaPitch)
             default:
                 break
             }
@@ -207,6 +228,108 @@ private struct FocusARContainer: UIViewRepresentable {
             let yawQuat = simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0))
             let pitchQuat = simd_quatf(angle: pitch, axis: SIMD3<Float>(1, 0, 0))
             model.orientation = yawQuat * pitchQuat
+        }
+
+        private func normalizeAngle(_ value: Float) -> Float {
+            var angle = fmod(value, 2 * .pi)
+            if angle > .pi {
+                angle -= 2 * .pi
+            } else if angle < -.pi {
+                angle += 2 * .pi
+            }
+            return angle
+        }
+    }
+}
+
+private struct FocusCongratsPanel: View {
+    let rock: Rock
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                Capsule()
+                    .fill(Color.white.opacity(0.4))
+                    .frame(width: 48, height: 5)
+                    .padding(.top, 8)
+
+                VStack(spacing: 12) {
+                    if let image = RockImageProvider.image(for: rock) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 140)
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 24).fill(Color.white))
+                    } else if let placeholder = UIImage(named: "placeholder") {
+                        Image(uiImage: placeholder)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 140)
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 24).fill(Color.white))
+                    }
+
+                    Text("พบหินใหม่!")
+                        .font(.headline)
+                        .foregroundStyle(Color.primaryText)
+
+                    Text(rock.nameTH)
+                        .font(.title3.bold())
+                        .foregroundStyle(Color.primaryText)
+
+                    Text(rock.nameEN)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.secondaryText)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    infoBlock(title: "ประเภทของหิน", value: rock.type)
+                    infoBlock(title: "ความแข็ง (MOHS)", value: rock.hardness)
+                    infoBlock(title: "เกิดได้อย่างไร", value: rock.description)
+                    infoBlock(title: "การใช้งาน", value: rock.usage)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button(action: onDismiss) {
+                    Label("ปิดแล้วเริ่ม Focus Mode", systemImage: "sparkles")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            LinearGradient(
+                                colors: [.pastelPurple, .pastelBlue],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.bottom, 24)
+            }
+            .padding()
+        }
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(Color.surface)
+                .shadow(color: .black.opacity(0.2), radius: 30, x: 0, y: 20)
+        )
+        .padding(.horizontal, 24)
+        .padding(.bottom, 40)
+    }
+
+    private func infoBlock(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .font(.caption)
+                .foregroundStyle(Color.secondaryText)
+            Text(value)
+                .font(.body)
+                .foregroundStyle(Color.primaryText)
         }
     }
 }

@@ -18,8 +18,8 @@ struct RockDetailView: View {
                 header
 
                 infoSection(title: "ชื่อภาษาอังกฤษ", value: rock.nameEN)
-                infoSection(title: "ชื่อวิทยาศาสตร์", value: rock.nameSci)
                 infoSection(title: "ประเภทของหิน", value: rock.type)
+                infoSection(title: "ความแข็ง (Mohs)", value: rock.hardness)
 
                 Divider()
 
@@ -42,6 +42,9 @@ struct RockDetailView: View {
         .navigationTitle(rock.nameTH)
         .navigationBarTitleDisplayMode(.inline)
         .background(Color.pastelPink.opacity(0.1).ignoresSafeArea())
+        .onAppear {
+            RockModelLoader.preloadModel(for: rock)
+        }
     }
 
     private var header: some View {
@@ -107,11 +110,13 @@ private struct RockImageView: View {
             if let image = RockImageProvider.image(for: rock) {
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFill()
+                    .scaledToFit()
+                    .padding(24)
             } else if let placeholder = UIImage(named: "placeholder") {
                 Image(uiImage: placeholder)
                     .resizable()
-                    .scaledToFill()
+                    .scaledToFit()
+                    .padding(24)
             } else {
                 Image(systemName: "cube.fill")
                     .resizable()

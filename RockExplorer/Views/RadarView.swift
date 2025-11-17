@@ -24,8 +24,8 @@ struct RadarView: View {
     @StateObject private var hapticController = ProximityHapticController()
     @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var hasGeneratedRocks = false
-    @State private var focusedRock: RadarRock?
-    @State private var rockForAR: Rock?
+    @State private var focusRock: Rock?
+    @State private var showFocusIntro = false
     @State private var isLoading = true
     @State private var loadingAction = "กำลังเตรียมโหมด Radar"
     @State private var loadingWaiting = "รอสัญญาณตำแหน่งของคุณ"
@@ -106,34 +106,11 @@ struct RadarView: View {
             }
         }
         .navigationTitle("Radar Mode")
-        .sheet(item: $focusedRock, onDismiss: {
-            if radarViewModel.consumeNearbyRock() != nil {
-                hasGeneratedRocks = false
-                startLoading(action: "กำลังวางตำแหน่งหินใหม่", waiting: "รอสัญญาณการเคลื่อนที่", resetProgress: true)
-            }
-        }) { radarRock in
-            RockFoundSheet(
-                rock: radarRock.rock,
-                onViewAR: {
-                    focusedRock = nil
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        rockForAR = radarRock.rock
-                    }
+        .fullScreenCover(item: $focusRock, onDismiss: handleFocusDismiss) { rock in
+            RockFocusView(rock: rock, showsCongratulationPanel: showFocusIntro)
+                .onDisappear {
+                    showFocusIntro = false
                 }
-            )
-            .presentationDetents([.medium])
-        }
-        .fullScreenCover(item: $rockForAR) { rock in
-            NavigationStack {
-                RockARView(rock: rock)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") {
-                                rockForAR = nil
-                            }
-                        }
-                    }
-            }
         }
     }
 
@@ -151,6 +128,11 @@ struct RadarView: View {
             hasGeneratedRocks = true
         }
 
+        if focusRock != nil || showFocusIntro {
+            hapticController.stop()
+            return
+        }
+
         let result = radarViewModel.updateUserLocation(location)
         nearestDistance = result.nearestDistance
         updateTargetBearing(with: location, rock: result.nearestRock)
@@ -160,7 +142,8 @@ struct RadarView: View {
                 collection.collect(discovered.rock)
             }
             updateProgress(for: 0.0)
-            focusedRock = discovered
+            showFocusIntro = true
+            focusRock = discovered.rock
             hapticController.stop()
             updateProximityStatus(distance: 0)
             finishLoading()
@@ -174,6 +157,14 @@ struct RadarView: View {
                 updateProximityStatus(distance: nil)
             }
             finishLoading()
+        }
+    }
+
+    private func handleFocusDismiss() {
+        showFocusIntro = false
+        if radarViewModel.consumeNearbyRock() != nil {
+            hasGeneratedRocks = false
+            startLoading(action: "กำลังวางตำแหน่งหินใหม่", waiting: "รอสัญญาณการเคลื่อนที่", resetProgress: true)
         }
     }
 
@@ -544,59 +535,6 @@ private struct RadarHintView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
-    }
-}
-
-private struct RockFoundSheet: View {
-    let rock: Rock
-    let onViewAR: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Capsule()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(width: 48, height: 6)
-                .padding(.top, 12)
-
-            Image(systemName: "sparkles")
-                .font(.largeTitle)
-                .foregroundStyle(Color.pastelPurple)
-
-            VStack(spacing: 8) {
-                Text("พบหินชื่อ \(rock.nameTH)")
-                    .font(.title3.bold())
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Color.primaryText)
-
-                Text("อัปเดตเข้าสู่ RockDex แล้ว")
-                    .font(.subheadline)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Color.secondaryText)
-            }
-            .padding(.horizontal)
-
-            Button(action: onViewAR) {
-                Label("เข้าสู่โหมด Focus", systemImage: "arkit")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        LinearGradient(
-                            colors: [.pastelPurple, .pastelBlue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal)
-
-            Spacer()
-        }
-        .presentationBackground(.thinMaterial)
-        .presentationCornerRadius(28)
     }
 }
 

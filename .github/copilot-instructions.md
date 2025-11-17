@@ -30,7 +30,7 @@ init() {
 - **Data Source**: `RockDataStore` with hardcoded fallback data (no external JSON currently)
 - **Asset Convention**: Each rock has `assetName` property that maps to:
   - Image: `"Images/Rocks/{assetName}.png"`
-  - 3D Model: `"Images/Rocks/{assetName}.glb"`
+  - 3D Model: `"Images/Rocks/{assetName}.usdz"`
 
 ### 2. Collection System
 - **Persistence**: Uses `UserDefaults` with key `"collected_rock_ids"` to store `Set<Int>`
@@ -44,7 +44,7 @@ init() {
 
 ### 4. AR Integration
 - **Framework**: Uses `ARKit` + `RealityKit` for 3D rock scanning experience
-- **Asset Loading**: Loads `.glb` files from bundle resources
+- **Asset Loading**: Loads `.usdz` files from bundle resources
 - **State Management**: AR view handles collection state updates through environment objects
 
 ## Navigation Pattern
@@ -108,7 +108,7 @@ struct RadarView: View {
 
 ## Resource Management
 - Images stored in `RockExplorer/Resources/Images/Rocks/`
-- 3D models (`.glb`) in same directory with matching `assetName`
+- 3D models (`.usdz`) in same directory with matching `assetName`
 - All assets referenced programmatically, not in Asset Catalog
 
 When modifying this codebase, always maintain the MVVM + Environment Object pattern and ensure proper `@MainActor` usage for UI state management.

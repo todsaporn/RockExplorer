@@ -13,10 +13,10 @@ struct Rock: Identifiable, Codable, Equatable, Hashable {
     let assetName: String
     let nameTH: String
     let nameEN: String
-    let nameSci: String
     let type: String
     let description: String
     let usage: String
+    let hardness: String
     let location: CLLocationCoordinate2D?
 
     var imageName: String {
@@ -24,7 +24,7 @@ struct Rock: Identifiable, Codable, Equatable, Hashable {
     }
 
     var modelName: String {
-        RockResourceResolver.glbName(for: assetName)
+        RockResourceResolver.modelName(for: assetName)
     }
 
     static let placeholder = Rock(
@@ -32,10 +32,10 @@ struct Rock: Identifiable, Codable, Equatable, Hashable {
         assetName: "placeholder",
         nameTH: "ตัวอย่างหิน",
         nameEN: "Sample Rock",
-        nameSci: "Sample Rock",
         type: "หินอัคนี",
         description: "ข้อมูลตัวอย่างสำหรับหน้าจอพรีวิว",
         usage: "ตัวอย่างการใช้งานหรือความเชื่อมโยงทางประวัติศาสตร์",
+        hardness: "Mohs ~6",
         location: nil
     )
 }
@@ -46,10 +46,10 @@ extension Rock {
         case assetName
         case nameTH
         case nameEN
-        case nameSci
         case type
         case description
         case usage
+        case hardness
         case latitude
         case longitude
     }
@@ -60,10 +60,10 @@ extension Rock {
         assetName = try container.decode(String.self, forKey: .assetName)
         nameTH = try container.decode(String.self, forKey: .nameTH)
         nameEN = try container.decode(String.self, forKey: .nameEN)
-        nameSci = try container.decode(String.self, forKey: .nameSci)
         type = try container.decode(String.self, forKey: .type)
         description = try container.decode(String.self, forKey: .description)
         usage = try container.decode(String.self, forKey: .usage)
+        hardness = try container.decode(String.self, forKey: .hardness)
         if let lat = try container.decodeIfPresent(Double.self, forKey: .latitude),
            let lon = try container.decodeIfPresent(Double.self, forKey: .longitude) {
             location = CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -78,10 +78,10 @@ extension Rock {
         try container.encode(assetName, forKey: .assetName)
         try container.encode(nameTH, forKey: .nameTH)
         try container.encode(nameEN, forKey: .nameEN)
-        try container.encode(nameSci, forKey: .nameSci)
         try container.encode(type, forKey: .type)
         try container.encode(description, forKey: .description)
         try container.encode(usage, forKey: .usage)
+        try container.encode(hardness, forKey: .hardness)
         if let location {
             try container.encode(location.latitude, forKey: .latitude)
             try container.encode(location.longitude, forKey: .longitude)

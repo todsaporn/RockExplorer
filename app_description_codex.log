@@ -101,7 +101,7 @@ struct Rock: Identifiable, Codable {
     }
     
     var modelName: String {
-        return "Images/Rocks/\(assetName).glb"
+        return "Images/Rocks/\(assetName).usdz"
     }
 }
 
@@ -120,13 +120,13 @@ Resources/
  │    ├── placeholder.png
  │    ├── rock_explorer_logo.png
  │    └── Rocks/
- │         ├── basalt.glb
+ │         ├── basalt.usdz
  │         ├── basalt.png
- │         ├── conglomerate.glb
+ │         ├── conglomerate.usdz
  │         ├── conglomerate.png
- │         ├── granite.glb
+ │         ├── granite.usdz
  │         ├── granite.png
- │         ├── pumice.glb
+ │         ├── pumice.usdz
  │         ├── pumice.png
  └── Scenes/
 
