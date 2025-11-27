@@ -400,6 +400,8 @@
 				DEVELOPMENT_TEAM = AM9P778434;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = RockExplorer;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSCameraUsageDescription = "RockExplorer ใช้กล้องเพื่อแสดงโมเดลหินแบบ AR";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RockExplorer ใช้ตำแหน่งของคุณเพื่อสุ่มตำแหน่งหินใน Radar Mode";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -433,6 +435,8 @@
 				DEVELOPMENT_TEAM = AM9P778434;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = RockExplorer;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSCameraUsageDescription = "RockExplorer ใช้กล้องเพื่อแสดงโมเดลหินแบบ AR";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RockExplorer ใช้ตำแหน่งของคุณเพื่อสุ่มตำแหน่งหินใน Radar Mode";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
