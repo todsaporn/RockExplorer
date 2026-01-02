@@ -26,7 +26,7 @@ final class RadarViewModel: ObservableObject {
         isGenerating = false
     }
 
-    func prepareRocks(around location: CLLocation) {
+    func prepareRocks(around location: CLLocation, searchRadius: Double, minimumDistance: Double) {
         guard !isGenerating else { return }
         isGenerating = true
 
@@ -36,7 +36,11 @@ final class RadarViewModel: ObservableObject {
                 existing.isDiscovered = existing.isDiscovered || collection.isCollected(rock)
                 updatedRocks.append(existing)
             } else {
-                let coordinate = Self.randomCoordinate(around: location)
+                let coordinate = Self.randomCoordinate(
+                    around: location,
+                    minimumDistance: minimumDistance,
+                    radius: searchRadius
+                )
                 updatedRocks.append(
                     RadarRock(
                         rock: rock,
@@ -51,7 +55,7 @@ final class RadarViewModel: ObservableObject {
         isGenerating = false
     }
 
-    func updateUserLocation(_ location: CLLocation) -> (found: RadarRock?, nearestDistance: Double?, nearestRock: RadarRock?) {
+    func updateUserLocation(_ location: CLLocation, detectionRadius: Double) -> (found: RadarRock?, nearestDistance: Double?, nearestRock: RadarRock?) {
         guard !radarRocks.isEmpty else { return (nil, nil, nil) }
 
         var closestRock: RadarRock?
@@ -69,7 +73,7 @@ final class RadarViewModel: ObservableObject {
                 nearestRock = updatedRocks[index]
             }
 
-            if distance <= 5 && !updatedRocks[index].isDiscovered {
+            if distance <= detectionRadius && !updatedRocks[index].isDiscovered {
                 updatedRocks[index].isDiscovered = true
                 closestRock = updatedRocks[index]
             }
@@ -86,9 +90,11 @@ final class RadarViewModel: ObservableObject {
         return rock
     }
 
-    static func randomCoordinate(around location: CLLocation, radius: Double = 50) -> CLLocationCoordinate2D {
+    static func randomCoordinate(around location: CLLocation, minimumDistance: Double, radius: Double) -> CLLocationCoordinate2D {
         let bearing = Double.random(in: 0..<(2 * .pi))
-        let distance = Double.random(in: 5...radius)
+        let safeRadius = max(radius, minimumDistance)
+        let safeMinimum = min(minimumDistance, safeRadius)
+        let distance = Double.random(in: safeMinimum...safeRadius)
 
         let earthRadius = 6_371_000.0
         let latitude = location.coordinate.latitude * .pi / 180

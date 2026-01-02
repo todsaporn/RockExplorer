@@ -12,6 +12,7 @@ struct RockExplorerApp: App {
     @StateObject private var collectionViewModel: RockCollectionViewModel
     @StateObject private var locationService = LocationService()
     @StateObject private var radarViewModel: RadarViewModel
+    @StateObject private var settings = GameSettings()
 
     init() {
         let collection = RockCollectionViewModel()
@@ -25,6 +26,7 @@ struct RockExplorerApp: App {
                 .environmentObject(collectionViewModel)
                 .environmentObject(locationService)
                 .environmentObject(radarViewModel)
+                .environmentObject(settings)
         }
     }
 }

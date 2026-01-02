@@ -9,9 +9,15 @@ import SwiftUI
 import UIKit
 
 struct MainMenuView: View {
+    @EnvironmentObject private var settings: GameSettings
+    @EnvironmentObject private var collection: RockCollectionViewModel
+    @EnvironmentObject private var radarViewModel: RadarViewModel
+
     let onExplore: () -> Void
     let onRockdex: () -> Void
     let onCredits: () -> Void
+
+    @State private var showSettings = false
 
     private let buttonGradient = LinearGradient(
         colors: [.pastelPurple, .pastelBlue],
@@ -29,6 +35,22 @@ struct MainMenuView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 28) {
+                HStack {
+                    Spacer()
+                    Button(action: { showSettings = true }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(Color.primaryText)
+                            .padding(10)
+                            .background(
+                                Circle()
+                                    .fill(Color.white.opacity(0.65))
+                                    .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 6)
+                            )
+                    }
+                }
+                .padding(.top, 12)
+
                 logoView
                     .frame(maxWidth: .infinity)
                     .padding(.top, 48)
@@ -109,6 +131,12 @@ struct MainMenuView: View {
             .padding(.horizontal, 24)
         }
         .navigationBarBackButtonHidden()
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(settings)
+                .environmentObject(collection)
+                .environmentObject(radarViewModel)
+        }
     }
 }
 
@@ -164,5 +192,10 @@ private struct MainMenuButton: View {
 }
 
 #Preview {
-    MainMenuView(onExplore: {}, onRockdex: {}, onCredits: {})
+    let collection = RockCollectionViewModel()
+    let settings = GameSettings()
+    return MainMenuView(onExplore: {}, onRockdex: {}, onCredits: {})
+        .environmentObject(settings)
+        .environmentObject(collection)
+        .environmentObject(RadarViewModel(collection: collection))
 }

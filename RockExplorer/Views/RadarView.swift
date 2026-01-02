@@ -20,6 +20,7 @@ struct RadarView: View {
     @EnvironmentObject private var locationService: LocationService
     @EnvironmentObject private var radarViewModel: RadarViewModel
     @EnvironmentObject private var collection: RockCollectionViewModel
+    @EnvironmentObject private var settings: GameSettings
 
     @StateObject private var hapticController = ProximityHapticController()
     @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
@@ -37,7 +38,7 @@ struct RadarView: View {
     @State private var nearestDistance: Double?
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack {
             Map(position: $cameraPosition) {
                 UserAnnotation()
                 ForEach(radarViewModel.radarRocks) { radarRock in
@@ -47,7 +48,7 @@ struct RadarView: View {
                 }
             }
             .mapStyle(.standard(elevation: .realistic))
-            .ignoresSafeArea(edges: .bottom)
+            .ignoresSafeArea()
             .onAppear {
                 startLoading(action: "กำลังเตรียมโหมด Radar", waiting: "รอสัญญาณตำแหน่งของคุณ", resetProgress: true)
                 locationService.requestAccess()
@@ -66,39 +67,39 @@ struct RadarView: View {
                 updateMap(with: location)
             }
 
-            VStack(spacing: 16) {
-                HStack {
-                    Spacer()
-                    Button(action: recenterCamera) {
-                        Image(systemName: "location.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(Color.primaryText)
-                            .padding(10)
-                            .background(
-                                Circle()
-                                    .fill(Color.surface)
-                                    .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 4)
-                            )
-                    }
+            ZStack {
+                VStack(alignment: .leading, spacing: 10) {
+                    HeadingIndicator(
+                        heading: locationService.heading,
+                        targetBearing: targetBearing,
+                        distance: nearestDistance
+                    )
+
+                    ProximityStatusView(level: proximityLevel)
                 }
-                .padding(.horizontal)
                 .padding(.top, 12)
+                .padding(.leading, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-                HeadingIndicator(
-                    heading: locationService.heading,
-                    targetBearing: targetBearing,
-                    distance: nearestDistance
-                )
-                    .padding(.horizontal)
+                Button(action: recenterCamera) {
+                    Image(systemName: "location.circle.fill")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.primaryText)
+                        .padding(10)
+                        .background(
+                            Circle()
+                                .fill(Color.surface.opacity(0.92))
+                                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 4)
+                        )
+                }
+                .padding(.top, 12)
+                .padding(.trailing, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
 
-                ProximityStatusView(level: proximityLevel)
-                    .padding(.horizontal)
-
-                Spacer()
-
-                RadarHintView()
-                    .padding(.horizontal)
-                    .padding(.bottom, 24)
+                RadarHintView(searchRadius: settings.searchRadius, detectionRadius: settings.detectionRadius)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
 
             if isLoading {
@@ -116,13 +117,21 @@ struct RadarView: View {
 
     private func updateMap(with location: CLLocation) {
         if !hasGeneratedRocks {
-            startLoading(action: "กำลังสุ่มตำแหน่งหินรอบตัว", waiting: "ประมวลผลพื้นที่ 50 เมตร", resetProgress: false)
-            radarViewModel.prepareRocks(around: location)
+            startLoading(
+                action: "กำลังสุ่มตำแหน่งหินรอบตัว",
+                waiting: "ประมวลผลพื้นที่ \(Int(settings.searchRadius)) เมตร",
+                resetProgress: false
+            )
+            radarViewModel.prepareRocks(
+                around: location,
+                searchRadius: settings.searchRadius,
+                minimumDistance: settings.detectionRadius
+            )
             cameraPosition = .region(
                 MKCoordinateRegion(
                     center: location.coordinate,
-                    latitudinalMeters: 200,
-                    longitudinalMeters: 200
+                    latitudinalMeters: settings.searchRadius * 4,
+                    longitudinalMeters: settings.searchRadius * 4
                 )
             )
             hasGeneratedRocks = true
@@ -133,7 +142,7 @@ struct RadarView: View {
             return
         }
 
-        let result = radarViewModel.updateUserLocation(location)
+        let result = radarViewModel.updateUserLocation(location, detectionRadius: settings.detectionRadius)
         nearestDistance = result.nearestDistance
         updateTargetBearing(with: location, rock: result.nearestRock)
 
@@ -149,7 +158,7 @@ struct RadarView: View {
             finishLoading()
         } else {
             if let distance = result.nearestDistance {
-                hapticController.update(distance: distance)
+                hapticController.update(distance: distance, maxRange: settings.searchRadius)
                 updateProgress(for: distance)
                 updateProximityStatus(distance: distance)
             } else {
@@ -198,8 +207,8 @@ struct RadarView: View {
             cameraPosition = .region(
                 MKCoordinateRegion(
                     center: location.coordinate,
-                    latitudinalMeters: 200,
-                    longitudinalMeters: 200
+                    latitudinalMeters: settings.searchRadius * 4,
+                    longitudinalMeters: settings.searchRadius * 4
                 )
             )
         }
@@ -232,8 +241,9 @@ struct RadarView: View {
 
     private func updateProgress(for distance: Double?) {
         guard let distance else { return }
-        let clamped = max(0, min(50, distance))
-        let normalized = 1 - (clamped / 50)
+        let range = max(settings.searchRadius, 1)
+        let clamped = max(0, min(range, distance))
+        let normalized = 1 - (clamped / range)
         let computed = normalized * 100
         loadingProgress = max(loadingProgress, computed)
     }
@@ -271,11 +281,15 @@ struct RadarView: View {
             return
         }
 
-        if distance <= 5 {
+        let arrivalThreshold = settings.detectionRadius
+        let nearThreshold = min(settings.searchRadius, arrivalThreshold * 3)
+        let mediumThreshold = min(settings.searchRadius, arrivalThreshold * 6)
+
+        if distance <= arrivalThreshold {
             proximityLevel = .arrived
-        } else if distance <= 15 {
+        } else if distance <= nearThreshold {
             proximityLevel = .near
-        } else if distance <= 30 {
+        } else if distance <= mediumThreshold {
             proximityLevel = .medium
         } else {
             proximityLevel = .far
@@ -321,19 +335,20 @@ private struct ProximityStatusView: View {
     let level: ProximityLevel
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(systemName: level.iconName)
-                .font(.headline)
-            Text(level.description)
                 .font(.subheadline.weight(.semibold))
+            Text(level.description)
+                .font(.footnote.weight(.semibold))
             Spacer()
         }
         .foregroundStyle(level.color)
-        .padding()
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.85))
-                .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 4)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 3)
         )
     }
 }
@@ -442,11 +457,11 @@ private struct HeadingIndicator: View {
     let distance: Double?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("ทิศทางใกล้สุด")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(Color.secondaryText)
                     Text(directionLabel)
                         .font(.subheadline.weight(.semibold))
@@ -457,23 +472,23 @@ private struct HeadingIndicator: View {
 
             ZStack {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.surface)
-                    .frame(height: 80)
+                    .fill(.ultraThinMaterial)
+                    .frame(height: 64)
                     .overlay(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
                     )
-                    .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 4)
+                    .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 4)
 
                 Image(systemName: "location.north.line.fill")
-                    .font(.largeTitle)
+                    .font(.title)
                     .foregroundStyle(targetBearing == nil ? Color.primaryText : Color.pastelPurple)
                     .rotationEffect(.degrees(pointerRotationDegrees))
                     .animation(.easeInOut(duration: 0.2), value: pointerRotationDegrees)
             }
 
             Text(distanceLabel)
-                .font(.footnote.monospacedDigit())
+                .font(.caption.monospacedDigit())
                 .foregroundStyle(Color.secondaryText)
         }
     }
@@ -515,26 +530,37 @@ private struct HeadingIndicator: View {
 }
 
 private struct RadarHintView: View {
+    let searchRadius: Double
+    let detectionRadius: Double
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("เดินเข้าใกล้หินในรัศมี 50 เมตร แล้วปลดล็อกเมื่ออยู่ไม่เกิน 5 เมตร")
-                .font(.headline)
+            Text("เดินเข้าใกล้หินในรัศมี \(searchRadiusLabel) เมตร แล้วปลดล็อกเมื่ออยู่ไม่เกิน \(detectionRadiusLabel) เมตร")
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.primaryText)
 
             Text("เคล็ดลับ: เดินช้า ๆ แล้วสังเกตแรงสั่นที่ถี่และแรงขึ้นเมื่อเข้าใกล้ตำแหน่งปริศนา")
-                .font(.footnote)
+                .font(.caption)
                 .foregroundStyle(Color.secondaryText)
         }
-        .padding()
+        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.surface)
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 6)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 4)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                .stroke(Color.white.opacity(0.18), lineWidth: 1)
         )
+    }
+
+    private var searchRadiusLabel: String {
+        searchRadius.formatted(.number.precision(.fractionLength(0)))
+    }
+
+    private var detectionRadiusLabel: String {
+        detectionRadius.formatted(.number.precision(.fractionLength(0...1)))
     }
 }
 
@@ -546,9 +572,12 @@ private extension Double {
 
 #Preview {
     NavigationStack {
+        let collection = RockCollectionViewModel()
+        let settings = GameSettings()
         RadarView()
             .environmentObject(LocationService())
-            .environmentObject(RadarViewModel(collection: RockCollectionViewModel()))
-            .environmentObject(RockCollectionViewModel())
+            .environmentObject(RadarViewModel(collection: collection))
+            .environmentObject(collection)
+            .environmentObject(settings)
     }
 }

@@ -17,14 +17,14 @@ final class ProximityHapticController: ObservableObject {
     private var currentIntensity: CGFloat = 0.5
     private let generator = UIImpactFeedbackGenerator(style: .medium)
 
-    func update(distance: Double?) {
-        guard let distance else {
+    func update(distance: Double?, maxRange: Double) {
+        guard let distance, maxRange > 0 else {
             stop()
             return
         }
 
-        let clamped = max(0, min(distance, 50))
-        let normalized = 1 - (clamped / 50) // 0 : ≥50m, 1 : at target
+        let clamped = max(0, min(distance, maxRange))
+        let normalized = 1 - (clamped / maxRange) // 0 : ≥maxRange, 1 : at target
 
         guard normalized > 0 else {
             stop()

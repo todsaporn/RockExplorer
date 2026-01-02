@@ -83,8 +83,11 @@ private enum Destination: Hashable {
 }
 
 #Preview {
-    ContentView()
-        .environmentObject(RockCollectionViewModel())
+    let collection = RockCollectionViewModel()
+    let settings = GameSettings()
+    return ContentView()
+        .environmentObject(collection)
         .environmentObject(LocationService())
-        .environmentObject(RadarViewModel(collection: RockCollectionViewModel()))
+        .environmentObject(RadarViewModel(collection: collection))
+        .environmentObject(settings)
 }
