@@ -36,6 +36,7 @@ struct RadarView: View {
     @State private var proximityLevel: ProximityLevel = .searching
     @State private var targetBearing: Double?
     @State private var nearestDistance: Double?
+    @State private var showsHintPanel = true
 
     var body: some View {
         ZStack {
@@ -68,19 +69,62 @@ struct RadarView: View {
             }
 
             ZStack {
-                VStack(alignment: .leading, spacing: 10) {
-                    HeadingIndicator(
-                        heading: locationService.heading,
-                        targetBearing: targetBearing,
-                        distance: nearestDistance
-                    )
+                VStack(spacing: 0) {
+                    ZStack {
+                        HStack {
+                            Spacer()
+                            RadarStatusCard(
+                                heading: locationService.heading,
+                                targetBearing: targetBearing,
+                                distance: nearestDistance,
+                                level: proximityLevel
+                            )
+                            .frame(maxWidth: 340)
+                            Spacer()
+                        }
+                    }
+                    .padding(.top, 4)
+                    .padding(.horizontal, 12)
 
-                    ProximityStatusView(level: proximityLevel)
+                    Spacer()
+
+                    if showsHintPanel {
+                        RadarHintView(searchRadius: settings.searchRadius, detectionRadius: settings.detectionRadius)
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 12)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
-                .padding(.top, 12)
-                .padding(.leading, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
+                Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showsHintPanel.toggle() } }) {
+                    Image(systemName: "info")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(Color.primaryText)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle()
+                                .fill(Color.surface.opacity(0.92))
+                                .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 4)
+                        )
+                }
+                .padding(.trailing, 12)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            }
+
+            if isLoading {
+                LoadingPanel(action: loadingAction, waiting: loadingWaiting, progress: loadingProgress)
+            }
+        }
+        .navigationTitle("Radar Mode")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Radar Mode")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color.primaryText)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button(action: recenterCamera) {
                     Image(systemName: "location.circle.fill")
                         .font(.title3.weight(.semibold))
@@ -92,21 +136,8 @@ struct RadarView: View {
                                 .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 4)
                         )
                 }
-                .padding(.top, 12)
-                .padding(.trailing, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-
-                RadarHintView(searchRadius: settings.searchRadius, detectionRadius: settings.detectionRadius)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 12)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            }
-
-            if isLoading {
-                LoadingPanel(action: loadingAction, waiting: loadingWaiting, progress: loadingProgress)
             }
         }
-        .navigationTitle("Radar Mode")
         .fullScreenCover(item: $focusRock, onDismiss: handleFocusDismiss) { rock in
             RockFocusView(rock: rock, showsCongratulationPanel: showFocusIntro)
                 .onDisappear {
@@ -331,28 +362,6 @@ private struct RockAnnotationView: View {
     }
 }
 
-private struct ProximityStatusView: View {
-    let level: ProximityLevel
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: level.iconName)
-                .font(.subheadline.weight(.semibold))
-            Text(level.description)
-                .font(.footnote.weight(.semibold))
-            Spacer()
-        }
-        .foregroundStyle(level.color)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 3)
-        )
-    }
-}
-
 private enum ProximityLevel {
     case searching
     case far
@@ -451,46 +460,62 @@ private struct LoadingPanel: View {
     }
 }
 
-private struct HeadingIndicator: View {
+private struct RadarStatusCard: View {
     let heading: CLHeading?
     let targetBearing: Double?
     let distance: Double?
+    let level: ProximityLevel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+        ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("ทิศทางใกล้สุด")
                         .font(.caption2)
                         .foregroundStyle(Color.secondaryText)
-                    Text(directionLabel)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.primaryText)
+                    HStack(spacing: 6) {
+                        Text(directionLabel)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.secondaryText)
+                        Spacer()
+                        Text(distanceLabel)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(Color.secondaryText)
+                    }
                 }
-                Spacer()
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.surfaceSoft)
+                        .frame(height: 64)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 4)
+
+                    Image(systemName: "location.north.line.fill")
+                        .font(.title)
+                        .foregroundStyle(targetBearing == nil ? Color.primaryText : Color.pastelPurple)
+                        .rotationEffect(.degrees(pointerRotationDegrees))
+                        .animation(.easeInOut(duration: 0.2), value: pointerRotationDegrees)
+                }
             }
 
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .frame(height: 64)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 4)
-
-                Image(systemName: "location.north.line.fill")
-                    .font(.title)
-                    .foregroundStyle(targetBearing == nil ? Color.primaryText : Color.pastelPurple)
-                    .rotationEffect(.degrees(pointerRotationDegrees))
-                    .animation(.easeInOut(duration: 0.2), value: pointerRotationDegrees)
-            }
-
-            Text(distanceLabel)
-                .font(.caption.monospacedDigit())
+            Text(level.description)
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(Color.secondaryText)
         }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
     }
 
     private var pointerRotationDegrees: Double {
