@@ -49,21 +49,128 @@ private struct HeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("รวบรวมหินให้ครบทั้ง \(total) ชนิด!")
-                .font(.title3.bold())
+            Text("ท่านรวบรวมหินได้ \(collectedCount) ชนิด จากทั้งหมด \(total) ชนิด")
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(Color.primaryText)
 
-            HStack(spacing: 12) {
-                ProgressView(value: Double(collectedCount), total: Double(max(total, 1)))
-                    .progressViewStyle(.linear)
-                    .tint(.pastelPurple)
-                    .frame(height: 8)
-                    .clipShape(Capsule())
+            AchievementStepsView(
+                collectedCount: collectedCount,
+                total: total
+            )
+        }
+    }
+}
 
-                Text("\(collectedCount)/\(total)")
-                    .font(.footnote.monospacedDigit())
-                    .foregroundStyle(Color.secondaryText)
+private struct AchievementStepsView: View {
+    let collectedCount: Int
+    let total: Int
+
+    private var steps: [AchievementStep] {
+        let safeTotal = max(total, 1)
+        let bronzePercent = 0.3
+        let silverPercent = 0.68
+        let goldPercent = 1.0
+
+        let bronze = max(1, Int(ceil(Double(safeTotal) * bronzePercent)))
+        let silver = max(bronze, Int(ceil(Double(safeTotal) * silverPercent)))
+        let gold = safeTotal
+
+        return [
+            AchievementStep(
+                title: "ทองแดง",
+                systemImage: "medal.fill",
+                color: Color(red: 181 / 255, green: 120 / 255, blue: 87 / 255),
+                percent: bronzePercent,
+                threshold: bronze
+            ),
+            AchievementStep(
+                title: "เงิน",
+                systemImage: "medal.fill",
+                color: Color(red: 196 / 255, green: 206 / 255, blue: 214 / 255),
+                percent: silverPercent,
+                threshold: silver
+            ),
+            AchievementStep(
+                title: "ทอง",
+                systemImage: "medal.fill",
+                color: Color(red: 240 / 255, green: 201 / 255, blue: 86 / 255),
+                percent: goldPercent,
+                threshold: gold
+            )
+        ]
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let lineStart: CGFloat = 12
+            let lineEnd = max(lineStart, geo.size.width - 12)
+            let lineWidth = max(0, lineEnd - lineStart)
+            let badgeWidth: CGFloat = 60
+            ZStack(alignment: .topLeading) {
+                Capsule()
+                    .fill(Color.secondaryText.opacity(0.2))
+                    .frame(width: lineWidth, height: 4)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 16)
+
+                Capsule()
+                    .fill(Color.pastelPurple)
+                    .frame(width: max(12, lineWidth * progress), height: 4)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 16)
+
+                ForEach(steps) { step in
+                    let rawX = lineStart + (lineWidth * CGFloat(step.percent))
+                    let clampedX = min(max(rawX, lineStart + badgeWidth / 2), lineEnd - badgeWidth / 2)
+                    AchievementStepBadge(
+                        step: step,
+                        isComplete: collectedCount >= step.threshold
+                    )
+                    .frame(width: badgeWidth)
+                    .position(x: clampedX, y: 32)
+                }
             }
+        }
+        .frame(height: 70)
+    }
+
+    private var progress: CGFloat {
+        let safeTotal = max(total, 1)
+        return CGFloat(min(Double(collectedCount) / Double(safeTotal), 1))
+    }
+}
+
+private struct AchievementStep: Identifiable {
+    let id = UUID()
+    let title: String
+    let systemImage: String
+    let color: Color
+    let percent: Double
+    let threshold: Int
+}
+
+private struct AchievementStepBadge: View {
+    let step: AchievementStep
+    let isComplete: Bool
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: step.systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(step.color.opacity(isComplete ? 1 : 0.45))
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(step.color.opacity(isComplete ? 0.18 : 0.08))
+                        .overlay(
+                            Circle()
+                                .stroke(Color.secondaryText.opacity(0.2), lineWidth: 1)
+                        )
+                )
+
+            Text(step.title)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Color.secondaryText)
         }
     }
 }
