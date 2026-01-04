@@ -27,10 +27,13 @@ enum RockResourceResolver {
     }
 
     static func imageName(for assetName: String) -> String {
-        hasResource(named: assetName, extension: "png") ? assetName : "_default"
+        // use breccia as default value
+        hasResource(named: assetName, extension: "png") ? assetName : "breccia"
     }
 
     static func modelName(for assetName: String) -> String {
-        hasResource(named: assetName, extension: "usdz") ? assetName : "_default"
+        // use breccia as default value
+        hasResource(named: assetName, extension: "usdz") ? assetName : "breccia"
     }
+
 }
